@@ -88,10 +88,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let label_clone = label.clone();
         let rx_arc = rx_arc_clone.clone();
 
+        let visible_keys: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let visible_keys_clone = visible_keys.clone();
+
         glib::timeout_add_local(Duration::from_millis(50), move || {
             if let Ok(rx) = rx_arc.lock() {
                 if let Ok(key_name) = rx.try_recv() {
-                    label_clone.set_markup(&format!("<span font='24'>{}</span>", key_name));
+                    let mut keys = visible_keys_clone.lock().unwrap();
+                    keys.push(key_name.clone());
+
+                    // Update label with joined keys
+                    label_clone.set_markup(&format!("<span font='24'>{}</span>", keys.join(" ")));
+
+                    // Schedule removal after 2 seconds
+                    let visible_keys_inner = visible_keys_clone.clone();
+                    let label_inner = label_clone.clone();
+                    glib::timeout_add_local_once(Duration::from_secs(2), move || {
+                        let mut keys = visible_keys_inner.lock().unwrap();
+                        keys.retain(|k| k != &key_name);
+                        label_inner
+                            .set_markup(&format!("<span font='24'>{}</span>", keys.join(" ")));
+                    });
                 }
             }
 
