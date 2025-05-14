@@ -9,6 +9,7 @@ use std::thread;
 use std::time::Duration;
 
 // use gtk4::gdk;
+use gtk4::pango;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Label};
 
@@ -55,11 +56,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Use a larger font
         label.set_markup("<span font='24'>Key Display</span>");
 
+        label.set_wrap(true); // Enables word wrap
+        label.set_max_width_chars(50); // Roughly control width
+        label.set_ellipsize(pango::EllipsizeMode::Start); // Trim with "..." if overflow
+
         // Create window
         let window = ApplicationWindow::builder()
             .application(app)
             .title("Key Display")
-            .default_width(300)
+            .default_width(500)
             .default_height(100)
             .child(&label)
             .build();
@@ -67,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Set window properties - move to a visible location on screen
         // In GTK4, we need to position the window after showing it
         window.present();
-        window.set_default_size(300, 100);
+        window.set_default_size(500, 100);
 
         // Move to top-right corner of the screen
         // if let Some(surface) = window.surface() {
