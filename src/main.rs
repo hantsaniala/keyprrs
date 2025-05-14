@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create GTK application
     let app = Application::builder()
-        .application_id("com.example.key-display")
+        .application_id("com.hantsaniala.keyprrs")
         .build();
 
     let rx_arc = Arc::new(Mutex::new(rx));
