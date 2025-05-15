@@ -1,17 +1,15 @@
 use glib::ControlFlow;
-// use std::cell::RefCell;
-use std::path::{Path, PathBuf};
-// use std::rc::Rc;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-// use gtk4::gdk;
 use gtk4::pango;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Label};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 // For input events
 use evdev::{Device, InputEventKind, Key};
@@ -51,14 +49,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .margin_bottom(20)
             .margin_start(20)
             .margin_end(20)
+            .halign(gtk4::Align::Center)
+            .width_request(100)
             .build();
 
         // Use a larger font
-        label.set_markup("<span font='24'>Key Display</span>");
+        label.set_markup("<span font='24' weight='bold'>Key Display</span>");
 
         label.set_wrap(true); // Enables word wrap
         label.set_max_width_chars(50); // Roughly control width
-        label.set_ellipsize(pango::EllipsizeMode::Start); // Trim with "..." if overflow
+        label.set_justify(gtk4::Justification::Center);
+        label.set_ellipsize(pango::EllipsizeMode::None); // Trim with "..." if overflow
 
         // Create window
         let window = ApplicationWindow::builder()
@@ -69,20 +70,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .child(&label)
             .build();
 
-        // Set window properties - move to a visible location on screen
-        // In GTK4, we need to position the window after showing it
-        window.present();
-        window.set_default_size(500, 100);
+        window.set_decorated(false);
 
-        // Move to top-right corner of the screen
-        // if let Some(surface) = window.surface() {
-        // let display = surface.display();
-        // if let Some(monitor) = display.monitor_at_surface(&surface) {
-        // let geometry = monitor.geometry();
-        // Position at top-right of the screen with a small margin
-        // window.move_(geometry.width() - 320, 20);
-        // }
-        // }
+        // Set up CSS for transparent background
+        let css_provider = gtk4::CssProvider::new();
+        css_provider.load_from_data(
+            r#"
+            window {
+                background-color: rgba(0, 0, 0, 0);
+            }
+            label {
+                background-color: rgba(0, 0, 0, 0.5);
+                color: white;
+                border-radius: 8px;
+                padding: 4px 12px;
+            }
+        "#,
+        );
+
+        // Apply CSS to the window
+        gtk4::style_context_add_provider_for_display(
+            &gtk4::gdk::Display::default().expect("Could not get default display"),
+            &css_provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+
+        // Initialize the window for layer shell
+        window.init_layer_shell();
+
+        // Configure it as an overlay
+        window.set_layer(Layer::Overlay);
+
+        // Set the window to appear at the top of the screen
+        window.set_anchor(Edge::Bottom, true);
+        window.set_anchor(Edge::Left, true);
+        window.set_anchor(Edge::Right, true);
+
+        // Make the window auto-sized based on contents
+        window.set_margin(Edge::Bottom, 50);
+
+        // Set keyboard interaction mode
+        window.set_keyboard_mode(KeyboardMode::None);
+
+        // Make the window transparent to mouse clicks
+        window.set_exclusive_zone(-1);
+
+        // Present the window
+        window.present();
 
         // Set up a timer to check for key events
         let label_clone = label.clone();
@@ -98,7 +132,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     keys.push(key_name.clone());
 
                     // Update label with joined keys
-                    label_clone.set_markup(&format!("<span font='24'>{}</span>", keys.join(" ")));
+                    label_clone.set_markup(&format!(
+                        "<span font='24' weight='bold'>{}</span>",
+                        keys.join(" ")
+                    ));
 
                     // Schedule removal after 1 second
                     let visible_keys_inner = visible_keys_clone.clone();
@@ -106,8 +143,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     glib::timeout_add_local_once(Duration::from_secs(1), move || {
                         let mut keys = visible_keys_inner.lock().unwrap();
                         keys.retain(|k| k != &key_name);
-                        label_inner
-                            .set_markup(&format!("<span font='24'>{}</span>", keys.join(" ")));
+                        label_inner.set_markup(&format!(
+                            "<span font='24' weight='bold'>{}</span>",
+                            keys.join(" ")
+                        ));
                     });
                 }
             }
