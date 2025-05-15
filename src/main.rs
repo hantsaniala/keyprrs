@@ -100,10 +100,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Update label with joined keys
                     label_clone.set_markup(&format!("<span font='24'>{}</span>", keys.join(" ")));
 
-                    // Schedule removal after 2 seconds
+                    // Schedule removal after 1 second
                     let visible_keys_inner = visible_keys_clone.clone();
                     let label_inner = label_clone.clone();
-                    glib::timeout_add_local_once(Duration::from_secs(2), move || {
+                    glib::timeout_add_local_once(Duration::from_secs(1), move || {
                         let mut keys = visible_keys_inner.lock().unwrap();
                         keys.retain(|k| k != &key_name);
                         label_inner
